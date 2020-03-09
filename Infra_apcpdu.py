@@ -49,18 +49,10 @@ class Infra_apcpdu:
 		self.outlets = []
 		self.exp.send('olName all\r')
 		while True:
-			# Strangely, this will sometimes fail with an 'E101: Command Not Found', usually immediately after rebooting
-			# the PDU. In this case, delay and retry.
-			res = self.exp.expect(["E000: Success", "E101: Command Not Found", "\n *([0-9]*): ([^\r]*)\r"])
+			res = self.exp.expect(["E000: Success","\n *([0-9]*): ([^\r]*)\r"])
 			if res == 0:
 				# Command has finished, we've got all the outlets.
 				break
-			elif res == 1:
-				# 'command not found'! sleep and retry.
-				self.exp.expect("apc>")
-				time.sleep(1)
-				self.outlets = []
-				self.exp.send('olName all\n')
 			else:
 				# An outlet!
 				id = self.exp.match.group(1).strip()
@@ -156,30 +148,15 @@ class Infra_apcpdu:
 		self.ser.reset_input_buffer()
 		self.exp.send("\r")
 		self.log("Waiting for login prompt..")
-#		promptsSeen = 0
 		while True:
 			try:
 				if (self.exp.expect([ "User Name : ", "apc>" ], timeout=1) == 1):
-#					promptsSeen = promptsSeen + 1
-#					if promptsSeen < 3:
-#						print("Have seen %d/3 prompts.." % promptsSeen)
-#						time.sleep(1)
-#						self.exp.send("\r")
-#						continue
-#					if force == False:
 					self.log("Device is already logged in, continuing")
 					isLoggedIn = True
-#					else:
-#						continue
 				else:
 					isLoggedIn = False
 				break
 			except pexpect.exceptions.TIMEOUT:
-				promptsSeen = 0
-#				if force:
-#					self.log(".. waiting for PDU to reboot")
-#					time.sleep(1)
-#				else:
 				self.log(".. no login prompt, hitting enter to see if one appears")
 				self.exp.send("\r")
 				continue
@@ -193,6 +170,18 @@ class Infra_apcpdu:
 			if (self.exp.expect([ "apc>", "User Name : "], timeout=2) == 1):
 				raise Exception("Login failed")
 			self.log("Logged into device OK.")
+
+		# Strangely, some specifc commands (such as olname) will sometimes fail with an 'E101: Command Not Found', immediately after rebooting
+		# the PDU. Wait until this command can succeed before returning.
+		for cmd in ('olname 1\r', 'ntp'):
+			while True:
+				self.exp.send('olname 1\r')
+				res = self.exp.expect(["E000: Success", "E101: Command Not Found"], 5)
+				if res == 0:
+					break
+				time.sleep(1)
+
+		self.log("All PDU functions available.")
 
 
 	def setOutletName(self, olID, newname):
@@ -336,8 +325,9 @@ class Infra_apcpdu:
 				continue
 			except pexpect.exceptions.TIMEOUT:
 				break
-		print("PDU has started rebooting.")
+		self.log("PDU has started rebooting.")
 		self.logon()
+		self.log("PDU is up.")
 
 	def __enter__(self):
 		return self
