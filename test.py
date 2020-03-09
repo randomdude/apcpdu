@@ -16,7 +16,7 @@ class Tests(unittest2.TestCase):
 		self.port = '/dev/ttyUSB0'
 
 	def createUUT(self):
-		return Infra_apcpdu.Infra_apcpdu(self.port, self.username, self.password, True)
+		return Infra_apcpdu.Infra_apcpdu(self.port, self.username, self.password, False)
 
 	def testSettingIP(self):
 		for ip in ['1.1.1.1', '2.2.2.2']:
