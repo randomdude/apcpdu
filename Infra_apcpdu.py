@@ -173,7 +173,7 @@ class Infra_apcpdu:
 
 		# Strangely, some specifc commands (such as olname) will sometimes fail with an 'E101: Command Not Found', immediately after rebooting
 		# the PDU. Wait until this command can succeed before returning.
-		for cmd in ('olname 1\r', 'ntp'):
+		for cmd in ('olname 1\r', 'ntp', 'snmp', 'snmptrap'):
 			while True:
 				self.exp.send('olname 1\r')
 				res = self.exp.expect(["E000: Success", "E101: Command Not Found"], 5)
